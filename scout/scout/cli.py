@@ -111,6 +111,46 @@ async def cmd_web(args: argparse.Namespace) -> None:
     await server.serve()
 
 
+
+async def cmd_analyze(args: argparse.Namespace) -> None:
+    """Run the multi-agent analysis pipeline on stored signals."""
+    from openai import AsyncOpenAI
+    from scout.config import Settings
+    from scout.db import Database
+    from scout.kg import KnowledgeGraph
+    from scout.agents_v2 import AnalysisPipeline
+
+    settings = Settings()
+    if not settings.openai_api_key:
+        print("Error: SCOUT_OPENAI_API_KEY not set")
+        return
+
+    db = Database(settings.db_path)
+    kg = KnowledgeGraph(settings.graph_path)
+
+    # Get unprocessed signals
+    signals = db.get_unprocessed_signals(limit=args.limit)
+    if not signals:
+        # Also try processed signals if none unprocessed
+        signals = list(db.db["raw_signals"].rows_where("1=1", limit=args.limit, order_by="id desc"))
+        signals = [dict(r) for r in signals]
+
+    print(f"Analyzing {len(signals)} signals with model {args.model}...")
+
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    pipeline = AnalysisPipeline(client=client, kg=kg, model=args.model)
+
+    results = await pipeline.run(signals)
+
+    # Store results
+    stored = 0
+    for result in results:
+        db.store_derived_problem(result)
+        stored += 1
+
+    print(f"Analysis complete. {stored} derived problems stored in DB.")
+    print("View them at http://localhost:8765 (Problems tab)")
+
 async def cmd_score(args: argparse.Namespace) -> None:
     settings = Settings()
     profile = load_profile(settings.profile_path)
@@ -181,6 +221,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--backfill", action="store_true", help="Scrape all historical data (full backfill)")
     p_run.add_argument("--once", action="store_true", help="Run a single cycle and exit")
 
+    p_analyze = sub.add_parser("analyze", help="Run mass signal analysis with multi-agent pipeline")
+    p_analyze.add_argument("--limit", type=int, default=200, help="Max signals to analyze (default 200)")
+    p_analyze.add_argument("--model", default="gpt-4o-mini", help="OpenAI model (default gpt-4o-mini)")
+
     p_web = sub.add_parser("web", help="Start the dashboard web server")
     p_web.add_argument("--host", default="127.0.0.1", help="Host (default 127.0.0.1)")
     p_web.add_argument("--port", type=int, default=8765, help="Port (default 8765)")
@@ -210,11 +254,10 @@ def main() -> None:
         asyncio.run(cmd_run(args))
     elif cmd == "web":
         asyncio.run(cmd_web(args))
+    elif cmd == "analyze":
+        asyncio.run(cmd_analyze(args))
     elif cmd == "score":
         asyncio.run(cmd_score(args))
-    else:
-        parser.print_help()
-        sys.exit(1)
 
 
 if __name__ == "__main__":

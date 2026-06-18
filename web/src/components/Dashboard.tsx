@@ -39,11 +39,7 @@ export function Dashboard({ onNavigateToProfile }: DashboardProps) {
   const [hasActiveFilters, setHasActiveFilters] = useState(false)
 
   return (
-    <div
-      className="max-w-[1400px] mx-auto px-6 py-4 flex flex-col h-dvh"
-      role="application"
-      aria-label="Scout Dashboard"
-    >
+    <>
       {/* Header */}
       <header className="flex justify-between items-center py-4 border-b border-warm-border mb-4 shrink-0">
         <div>
@@ -103,6 +99,6 @@ export function Dashboard({ onNavigateToProfile }: DashboardProps) {
           <IdeaDetail idea={selectedIdea} />
         </main>
       </div>
-    </div>
+    </>
   )
 }

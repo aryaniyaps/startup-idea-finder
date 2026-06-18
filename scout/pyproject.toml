@@ -16,6 +16,7 @@ dependencies = [
     "sentence-transformers>=3.0",
     "readability-lxml>=0.8",
     "beautifulsoup4>=4.12",
+    "pydantic-ai>=0.0.30",
     "pydantic-settings>=2.3",
 ]
 

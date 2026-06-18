@@ -37,6 +37,28 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  scout-runner:
+    build:
+      context: ./scout
+    command: ["uv", "run", "scout", "run"]
+    environment:
+      SCOUT_BROWSER_API_URL: "http://camofox-browser:9377"
+      SCOUT_OPENAI_API_KEY: ${SCOUT_OPENAI_API_KEY:-}
+      SCOUT_DATA_DIR: "/data"
+      SCOUT_DB_PATH: "/data/scout.db"
+      SCOUT_PROFILE_PATH: "/data/profile.json"
+      SCOUT_GRAPH_PATH: "/app/graphify-out/graph.json"
+    volumes:
+      - scout_data:/data
+      - ./graphify-out:/app/graphify-out:ro
+      - ./sources:/app/sources:ro
+    depends_on:
+      camofox-browser:
+        condition: service_healthy
+      scout:
+        condition: service_started
+    restart: unless-stopped
+
   # worldmonitor:
   #   build: ./worldmonitor
   #   ports:

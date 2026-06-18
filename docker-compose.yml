@@ -1,0 +1,47 @@
+services:
+  camofox-browser:
+    image: ghcr.io/redf0x1/camofox-browser:latest
+    ports:
+      - "9377:9377"
+    environment:
+      CAMOFOX_HOST: "0.0.0.0"
+      CAMOFOX_PORT: "9377"
+      CAMOFOX_AUTH_MODE: "off"
+    shm_size: "2gb"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9377/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  scout:
+    build:
+      context: ./scout
+    ports:
+      - "8765:8765"
+    environment:
+      SCOUT_BROWSER_API_URL: "http://camofox-browser:9377"
+      SCOUT_OPENAI_API_KEY: ${SCOUT_OPENAI_API_KEY:-}
+      SCOUT_DATA_DIR: "/data"
+      SCOUT_DB_PATH: "/data/scout.db"
+      SCOUT_PROFILE_PATH: "/data/profile.json"
+      SCOUT_GRAPH_PATH: "/app/graphify-out/graph.json"
+    volumes:
+      - scout_data:/data
+      - ./graphify-out:/app/graphify-out:ro
+      - ./sources:/app/sources:ro
+    depends_on:
+      camofox-browser:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # worldmonitor:
+  #   build: ./worldmonitor
+  #   ports:
+  #     - "3000:3000"
+  #   restart: unless-stopped
+
+volumes:
+  scout_data:

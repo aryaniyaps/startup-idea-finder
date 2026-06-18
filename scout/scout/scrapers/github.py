@@ -204,7 +204,7 @@ async def _search_repo_issues(
     return results
 
 
-async def fetch_github_issues(settings: Settings) -> list[dict]:
+async def fetch_github_issues(settings: Settings, backfill: bool = False) -> list[dict]:
     """Search GitHub Issues for high-reaction feature requests and bugs.
 
     Queries popular open-source repositories for open issues with high reaction
@@ -222,7 +222,10 @@ async def fetch_github_issues(settings: Settings) -> list[dict]:
         headers["Authorization"] = f"Bearer {settings.github_token}"
 
     # Limit repos to MAX_QUERIES_PER_RUN to stay within rate limits.
-    repos = TRACKED_REPOS[:MAX_QUERIES_PER_RUN]
+    max_queries = len(TRACKED_REPOS) if backfill else MAX_QUERIES_PER_RUN
+    repos = TRACKED_REPOS[:max_queries]
+
+    max_results = 100 if backfill else MAX_RESULTS
 
     timeout = httpx.Timeout(30.0, connect=10.0)
     async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
@@ -248,6 +251,6 @@ async def fetch_github_issues(settings: Settings) -> list[dict]:
             seen.add(issue["url"])
             unique.append(issue)
 
-    limited = unique[:MAX_RESULTS]
+    limited = unique[:max_results]
     logger.info("GitHub Issues: %d qualifying issues found", len(limited))
     return limited

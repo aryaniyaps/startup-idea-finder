@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-18T10:00:00Z",
+  "title": "Design System: Scout — The Expedition Log",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Amber Gold",
+        "canonical": "oklch(72% 0.15 80)",
+        "tonalRamp": [
+          "oklch(25% 0.06 80)",
+          "oklch(35% 0.08 80)",
+          "oklch(45% 0.10 80)",
+          "oklch(55% 0.12 80)",
+          "oklch(65% 0.14 80)",
+          "oklch(72% 0.15 80)",
+          "oklch(80% 0.13 80)",
+          "oklch(90% 0.06 80)"
+        ]
+      },
+      "bg": {
+        "role": "background",
+        "displayName": "Expedition Black",
+        "canonical": "oklch(16% 0.006 70)",
+        "tonalRamp": [
+          "oklch(8% 0.004 70)",
+          "oklch(12% 0.005 70)",
+          "oklch(16% 0.006 70)",
+          "oklch(20% 0.006 70)",
+          "oklch(24% 0.006 70)",
+          "oklch(30% 0.005 70)",
+          "oklch(40% 0.004 70)",
+          "oklch(55% 0.003 70)"
+        ]
+      },
+      "accent": {
+        "role": "accent",
+        "displayName": "Warm Teal",
+        "canonical": "oklch(58% 0.08 190)",
+        "tonalRamp": [
+          "oklch(22% 0.05 190)",
+          "oklch(32% 0.06 190)",
+          "oklch(42% 0.07 190)",
+          "oklch(52% 0.08 190)",
+          "oklch(58% 0.08 190)",
+          "oklch(68% 0.07 190)",
+          "oklch(78% 0.05 190)",
+          "oklch(90% 0.03 190)"
+        ]
+      }
+    },
+    "shadows": [
+      {
+        "name": "hover-glow",
+        "value": "0 0 0 1px oklch(72% 0.15 80 / 0.3)",
+        "purpose": "Subtle amber ring on interactive element hover — table rows, filter buttons, clickable cards."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 2px oklch(16% 0.006 70), 0 0 0 4px oklch(72% 0.15 80 / 0.5)",
+        "purpose": "Focus-visible indicator. Double ring with dark gap and amber outer."
+      },
+      {
+        "name": "toast-float",
+        "value": "0 4px 24px oklch(0% 0 0 / 0.4)",
+        "purpose": "Toast notification float above the page. The only resting shadow in the system."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default easing for state transitions — hover, focus, active. 150-200ms."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0, 0, 0.2, 1)",
+        "purpose": "Entrance transitions — toast, panel open. 200-300ms."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "1024px" },
+      { "name": "lg", "value": "1400px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single most important action on screen — Filter, Score, Refresh.",
+      "html": "<button class=\"ds-btn-primary\">Filter</button>",
+      "css": ".ds-btn-primary { background: #e3a83b; color: #191613; border: none; border-radius: 8px; padding: 8px 20px; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background: #f0b84a; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #191613, 0 0 0 4px rgba(227, 168, 59, 0.5); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary actions — Refresh when Filter is primary, Close detail panel.",
+      "html": "<button class=\"ds-btn-ghost\">Refresh</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: #a09888; border: 1px solid #3a352e; border-radius: 8px; padding: 8px 20px; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1), border-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-ghost:hover { color: #ece7df; border-color: #5a9e8c; } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 2px #191613, 0 0 0 4px rgba(227, 168, 59, 0.5); }"
+    },
+    {
+      "name": "Verdict Badge — STRONG",
+      "kind": "chip",
+      "refersTo": "badge-strong",
+      "description": "STRONG verdict indicator. Warm sage green.",
+      "html": "<span class=\"ds-badge ds-badge-strong\">STRONG</span>",
+      "css": ".ds-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-family: Inter, system-ui, sans-serif; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; } .ds-badge-strong { background: rgba(77, 158, 92, 0.18); color: #4d9e5c; }"
+    },
+    {
+      "name": "Verdict Badge — TARPIT",
+      "kind": "chip",
+      "refersTo": "badge-tarpit",
+      "description": "TARPIT warning indicator. Warm brick red.",
+      "html": "<span class=\"ds-badge ds-badge-tarpit\">TARPIT</span>",
+      "css": ".ds-badge-tarpit { background: rgba(184, 74, 60, 0.18); color: #b84a3c; }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "card-stat",
+      "description": "Dashboard stat card — label above value. Used in the stats bar.",
+      "html": "<div class=\"ds-stat-card\"><div class=\"ds-stat-label\">Total Ideas</div><div class=\"ds-stat-value\">247</div></div>",
+      "css": ".ds-stat-card { background: #221e1a; border: 1px solid #3a352e; border-radius: 8px; padding: 12px 20px; min-width: 100px; } .ds-stat-label { font-family: Inter, system-ui, sans-serif; font-size: 0.7rem; font-weight: 600; color: #a09888; text-transform: uppercase; letter-spacing: 0.04em; } .ds-stat-value { font-family: Inter, system-ui, sans-serif; font-size: 1.4rem; font-weight: 700; color: #ece7df; margin-top: 2px; }"
+    },
+    {
+      "name": "Detail Card",
+      "kind": "card",
+      "refersTo": "detail-card",
+      "description": "Score dimension card in the detail panel grid.",
+      "html": "<div class=\"ds-detail-card\"><h3 class=\"ds-detail-heading\">Problem Quality</h3><div class=\"ds-detail-score\">82</div><div class=\"ds-detail-meta\">Weight: 40%</div></div>",
+      "css": ".ds-detail-card { background: #191613; border: 1px solid #3a352e; border-radius: 8px; padding: 14px; } .ds-detail-heading { font-family: Inter, system-ui, sans-serif; font-size: 0.7rem; font-weight: 600; color: #a09888; text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 8px 0; } .ds-detail-score { font-family: Inter, system-ui, sans-serif; font-size: 1.8rem; font-weight: 700; color: #ece7df; } .ds-detail-meta { font-family: Inter, system-ui, sans-serif; font-size: 0.75rem; color: #a09888; margin-top: 6px; }"
+    },
+    {
+      "name": "Data Table Row",
+      "kind": "custom",
+      "refersTo": "table-row",
+      "description": "Idea list table row with hover state.",
+      "html": "<tr class=\"ds-table-row\"><td class=\"ds-table-cell ds-table-cell--dim\">1</td><td class=\"ds-table-cell\"><strong>AI-powered legal doc review</strong></td><td class=\"ds-table-cell ds-table-cell--score\">78</td><td><span class=\"ds-badge ds-badge-strong\">STRONG</span></td></tr>",
+      "css": ".ds-table-row { cursor: pointer; transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-table-row:hover { background: oklch(26% 0.006 70); } .ds-table-cell { padding: 10px 12px; border-bottom: 1px solid #3a352e; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; color: #ece7df; vertical-align: middle; } .ds-table-cell--dim { color: #a09888; } .ds-table-cell--score { font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', ui-monospace, monospace; }"
+    },
+    {
+      "name": "Toast Notification",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Fixed-position toast for live update notifications.",
+      "html": "<div class=\"ds-toast\">New ideas discovered!</div>",
+      "css": ".ds-toast { position: fixed; bottom: 20px; right: 20px; background: #221e1a; border: 1px solid #4d9e5c; border-radius: 8px; padding: 12px 20px; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; color: #ece7df; z-index: 1000; opacity: 0; transform: translateY(10px); transition: opacity 200ms cubic-bezier(0, 0, 0.2, 1), transform 200ms cubic-bezier(0, 0, 0.2, 1); } .ds-toast.show { opacity: 1; transform: translateY(0); } @media (prefers-reduced-motion: reduce) { .ds-toast { transition: opacity 200ms ease; transform: none; } .ds-toast.show { transform: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Expedition Log",
+    "overview": "Scout is an explorer's instrument — a field journal and star chart for startup ideas. The interface evokes a late-night study: lamplight pooling on a leather-bound journal, warmth against the dark, the quiet thrill of prospecting. Each idea is a discovered landmark, not a database row.\n\nThe system is built on a warm dark palette anchored by amber gold — the color of lamplight on a desk. It rejects the cold blue-gray severity of developer tools (the current GitHub-dark baseline) and the generic SaaS dashboard template entirely. Surfaces are deep and warm, typography is precise but human, and motion is restrained to state transitions — the user is in flow, not watching a show.\n\nThis is a product surface (design SERVES the task), so consistency and density are virtues. But it's also a personal instrument — it should feel crafted and alive, not sterile. Delight lives in the warmth of the palette and the precision of the typography, not in decorative motion or novel affordances.",
+    "keyCharacteristics": [
+      "Warm dark: deep brown-black base with amber lamplight accent",
+      "Product-first: system sans-serif stack, consistent component vocabulary, WCAG AA",
+      "Restrained motion: 150–200ms state transitions only, no choreographed sequences",
+      "Flat-by-default elevation: tonal layering over shadow stacks",
+      "Opinionated, not configurable: this is one founder's instrument"
+    ],
+    "rules": [
+      {
+        "name": "The Lamplight Rule",
+        "body": "The amber primary accent carries ≤15% of any screen's surface area. Its rarity is what makes it luminous.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Cold Blue Rule",
+        "body": "No color on the screen may have hue ≤210° (true blue through violet). The coldest permitted hue is warm teal (190°).",
+        "section": "colors"
+      },
+      {
+        "name": "The Semantic Warmth Rule",
+        "body": "Every semantic color pulls warmer than its conventional hex. Green toward sage, blue toward steel, red toward brick.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "One sans-serif family for everything. No display/body pairing. Product UI doesn't need font contrast.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Eyebrow Rule",
+        "body": "Labels appear only where they label something functional. Never as standalone decorative kickers above sections.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-At-Rest Rule",
+        "body": "No surface casts a shadow in its default state. Shadows appear only as interaction feedback or for floating elements.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Use the amber primary accent on ≤15% of any screen. One primary button, selected states, and the focus ring.",
+      "Use tonal layering (Expedition Black → Journal Surface → Raised Surface) to convey hierarchy instead of shadows.",
+      "Keep body text at ≥0.875rem and ≥4.5:1 contrast against its background.",
+      "Use text-wrap: balance on headings and text-wrap: pretty on prose justification blocks.",
+      "Warm every semantic color — green toward sage, blue toward steel, red toward brick.",
+      "Use the mono font stack for scores, IDs, and timestamps in table cells. Tabular figures.",
+      "Show a loading spinner for async operations, never a blank screen or disabled button.",
+      "Include prefers-reduced-motion: reduce alternatives for every animation and transition."
+    ],
+    "donts": [
+      "Don't use cold blue-gray (#58a6ff, GitHub's blue accent) or any hue ≤210°.",
+      "Don't use generic SaaS dashboard patterns: blue sidebar, white cards, chart widgets, hero-metric templates.",
+      "Don't use glassmorphism, gradient text, or decorative blur effects.",
+      "Don't use side-stripe borders (border-left: 3px solid) as colored accents.",
+      "Don't use tiny uppercase tracked eyebrows above sections.",
+      "Don't put shadows on elements at rest.",
+      "Don't use more than one font family.",
+      "Don't use modal dialogs for content that can live inline.",
+      "Don't animate layout properties. Use transform and opacity only.",
+      "Don't ship motion without a reduced-motion fallback.",
+      "Don't let heading text overflow at tablet/mobile breakpoints."
+    ]
+  }
+}

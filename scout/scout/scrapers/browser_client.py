@@ -40,11 +40,19 @@ class BrowserClient:
         await client.stop()
     """
 
-    def __init__(self, api_url: str, user_id: str = "scout"):
+    def __init__(self, api_url: str, user_id: str = "scout", api_key: str = ""):
         self.api_url = api_url.rstrip("/")
         self.user_id = user_id
+        self._api_key = api_key
         self._client: httpx.AsyncClient | None = None
         self._healthy = False
+
+    def _get_headers(self) -> dict[str, str]:
+        """Return request headers including auth if configured."""
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        return headers
 
     # ── Lifecycle ───────────────────────────────────────────────────────
 
@@ -52,7 +60,7 @@ class BrowserClient:
         """Initialize client and verify browser health."""
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(DEFAULT_TIMEOUT),
-            headers={"Content-Type": "application/json"},
+            headers=self._get_headers(),
         )
         healthy = await self.health_check()
         if healthy:

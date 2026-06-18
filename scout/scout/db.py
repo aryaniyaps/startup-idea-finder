@@ -120,6 +120,30 @@ class Database:
                 foreign_keys=[("idea_id", "ideas", "id")],
             )
 
+        if "derived_problems" not in existing:
+            self.db["derived_problems"].create(
+                {
+                    "id": str,
+                    "title": str,
+                    "description": str,
+                    "category": str,
+                    "affected_demographic": str,
+                    "signal_count": int,
+                    "source_tiers": str,  # JSON list[int]
+                    "severity": float,
+                    "problem_quality": float,
+                    "market_viability": float,
+                    "composite_score": float,
+                    "framework_scores": str,  # JSON dict
+                    "risks": str,  # JSON list[str]
+                    "tarpit_check": str,  # JSON dict or NULL
+                    "failure_matches": str,  # JSON list[str]
+                    "innovative_solutions": str,  # JSON list[dict]
+                    "created_at": str,
+                },
+                pk="id",
+            )
+
         # Indexes (idempotent via if_not_exists)
         self.db["ideas"].create_index(["source_tier"], if_not_exists=True)
         self.db["scores"].create_index(["composite"], if_not_exists=True)
@@ -131,23 +155,78 @@ class Database:
     # Raw signals
     # ------------------------------------------------------------------
 
-    def store_raw_signal(self, signal: dict) -> int:
-        """Persist a raw signal dict; returns its auto-incremented id."""
-        signal = dict(signal)
-        signal.setdefault("created_at", _now())
-        signal.setdefault("processed", False)
-        # Coerce any unexpected types so sqlite-utils can insert
-        signal = _coerce_row(signal)
-        return self.db["raw_signals"].insert(signal).last_pk
 
-    def get_unprocessed_signals(self, limit: int = 100) -> list[dict]:
-        rows = self.db["raw_signals"].rows_where(
-            "processed = 0", limit=limit, order_by="id"
-        )
+    def get_signals(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        source_type: str | None = None,
+        min_tier: int | None = None,
+    ) -> list[dict]:
+        """Return raw signals paginated, newest first. Includes idea/score data when processed."""
+        sql = """
+        SELECT rs.*, i.id AS idea_id, i.title AS idea_title,
+               s.composite, s.verdict
+        FROM raw_signals rs
+        LEFT JOIN mentions m ON rs.url = m.source_url
+        LEFT JOIN ideas i ON m.idea_id = i.id
+        LEFT JOIN (
+            SELECT idea_id, MAX(id) AS max_id FROM scores GROUP BY idea_id
+        ) latest ON i.id = latest.idea_id
+        LEFT JOIN scores s ON s.id = latest.max_id
+        WHERE 1=1
+        """
+        params: dict = {}
+        if source_type:
+            sql += " AND rs.source_type = :st"
+            params["st"] = source_type
+        if min_tier is not None:
+            sql += " AND rs.source_tier >= :mt"
+            params["mt"] = min_tier
+        sql += " ORDER BY rs.discovered_at DESC LIMIT :limit OFFSET :offset"
+        params["limit"] = limit
+        params["offset"] = offset
+
+        rows = list(self.db.query(sql, params))
         return [dict(r) for r in rows]
 
-    def mark_signal_processed(self, signal_id: int) -> None:
-        self.db["raw_signals"].update(signal_id, {"processed": True})
+    def get_signal_stats(self) -> dict:
+        """Aggregate stats for raw signals."""
+        total_signals = self.db["raw_signals"].count
+        processed_count = self.db["raw_signals"].count_where("processed = 1")
+
+        by_source: dict[str, int] = {}
+        for row in self.db.query(
+            "SELECT source_type, COUNT(*) AS cnt FROM raw_signals GROUP BY source_type"
+        ):
+            by_source[row["source_type"]] = row["cnt"]
+
+        by_tier: dict[str, int] = {}
+        for row in self.db.query(
+            "SELECT source_tier, COUNT(*) AS cnt FROM raw_signals GROUP BY source_tier"
+        ):
+            by_tier[f"tier_{row['source_tier']}"] = row["cnt"]
+
+        by_date: dict[str, int] = {}
+        for row in self.db.query(
+            """
+            SELECT DATE(discovered_at) AS day, COUNT(*) AS cnt
+            FROM raw_signals
+            WHERE discovered_at >= DATE('now', '-30 days')
+            GROUP BY day
+            ORDER BY day
+            """
+        ):
+            by_date[row["day"]] = row["cnt"]
+
+        return {
+            "total_signals": total_signals,
+            "processed_count": processed_count,
+            "unprocessed_count": total_signals - processed_count,
+            "by_source": by_source,
+            "by_tier": by_tier,
+            "by_date": by_date,
+        }
 
     # ------------------------------------------------------------------
     # Ideas
@@ -362,6 +441,42 @@ class Database:
         for r in rows:
             d = dict(r)
             _hydrate_json(d, "research_notes")
+            result.append(d)
+        return result
+
+    # ------------------------------------------------------------------
+    # Derived problems
+    # ------------------------------------------------------------------
+
+    def store_derived_problem(self, problem) -> None:
+        """Insert or upsert a DerivedProblem dataclass or dict."""
+        if hasattr(problem, "to_row"):
+            d = problem.to_row()
+        else:
+            d = dict(problem)
+        d.setdefault("created_at", _now())
+        d = _coerce_row(d)
+        self.db["derived_problems"].upsert(d, pk="id")
+
+    def get_derived_problems(self, limit: int = 20, offset: int = 0) -> list[dict]:
+        """Return paginated derived problems ordered by composite_score desc."""
+        rows = list(
+            self.db["derived_problems"].rows_where(
+                "1=1", limit=limit, offset=offset, order_by="composite_score desc"
+            )
+        )
+        result: list[dict] = []
+        for r in rows:
+            d = dict(r)
+            for json_field in (
+                "source_tiers",
+                "framework_scores",
+                "risks",
+                "tarpit_check",
+                "failure_matches",
+                "innovative_solutions",
+            ):
+                _hydrate_json(d, json_field)
             result.append(d)
         return result
 

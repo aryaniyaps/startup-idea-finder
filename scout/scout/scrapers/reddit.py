@@ -119,7 +119,7 @@ def _snapshot_to_signals(snapshot: dict, source_url: str) -> list[dict]:
     return signals
 
 
-async def fetch_reddit(settings: "Settings") -> list[dict]:
+async def fetch_reddit(settings: "Settings", backfill: bool = False) -> list[dict]:
     """
     Fetch Reddit problem signals via CamoFox stealth browser.
 
@@ -135,12 +135,13 @@ async def fetch_reddit(settings: "Settings") -> list[dict]:
         logger.warning("Reddit scraper: browser_api_url not configured, skipping")
         return []
 
-    client = BrowserClient(settings.browser_api_url, f"{settings.browser_user_id}-reddit")
+    client = BrowserClient(settings.browser_api_url, f"{settings.browser_user_id}-reddit", api_key=settings.browser_api_key)
     if not await client.start():
         logger.error("Reddit scraper: failed to connect to browser at %s", settings.browser_api_url)
         return []
 
     all_signals: list[dict] = []
+    request_delay = 0.5 if backfill else REQUEST_DELAY
 
     try:
         # ── Subreddit pages ────────────────────────────────────────────
@@ -154,7 +155,7 @@ async def fetch_reddit(settings: "Settings") -> list[dict]:
                 signals = _snapshot_to_signals(snapshot, url)
                 all_signals.extend(signals)
                 logger.debug("r/%s: %d signals", sub, len(signals))
-            await asyncio.sleep(REQUEST_DELAY)
+            await asyncio.sleep(request_delay)
 
         # ── Keyword searches ───────────────────────────────────────────
         for query in SEARCH_QUERIES:
@@ -164,7 +165,7 @@ async def fetch_reddit(settings: "Settings") -> list[dict]:
                 signals = _snapshot_to_signals(snapshot, url)
                 all_signals.extend(signals)
                 logger.debug("search '%s': %d signals", query, len(signals))
-            await asyncio.sleep(REQUEST_DELAY)
+            await asyncio.sleep(request_delay)
 
     finally:
         await client.stop()

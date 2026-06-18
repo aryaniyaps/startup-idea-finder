@@ -114,7 +114,7 @@ def _snapshot_to_signals(snapshot: dict, source_url: str) -> list[dict]:
     return signals
 
 
-async def fetch_twitter(settings: "Settings") -> list[dict]:
+async def fetch_twitter(settings: "Settings", backfill: bool = False) -> list[dict]:
     """
     Fetch Twitter/X problem signals via CamoFox stealth browser.
 
@@ -130,12 +130,13 @@ async def fetch_twitter(settings: "Settings") -> list[dict]:
         logger.warning("Twitter scraper: browser_api_url not configured, skipping")
         return []
 
-    client = BrowserClient(settings.browser_api_url, f"{settings.browser_user_id}-twitter")
+    client = BrowserClient(settings.browser_api_url, f"{settings.browser_user_id}-twitter", api_key=settings.browser_api_key)
     if not await client.start():
         logger.error("Twitter scraper: failed to connect to browser at %s", settings.browser_api_url)
         return []
 
     all_signals: list[dict] = []
+    request_delay = 0.5 if backfill else REQUEST_DELAY
 
     try:
         # ── Keyword searches via @twitter_search macro ─────────────────
@@ -146,7 +147,7 @@ async def fetch_twitter(settings: "Settings") -> list[dict]:
                 signals = _snapshot_to_signals(snapshot, url)
                 all_signals.extend(signals)
                 logger.debug("search '%s': %d signals", query, len(signals))
-            await asyncio.sleep(REQUEST_DELAY)
+            await asyncio.sleep(request_delay)
 
         # ── User profile pages ─────────────────────────────────────────
         # Navigate directly to each user's timeline
@@ -156,7 +157,7 @@ async def fetch_twitter(settings: "Settings") -> list[dict]:
                 signals = _snapshot_to_signals(snapshot, f"https://x.com/{username}")
                 all_signals.extend(signals)
                 logger.debug("@%s: %d signals", username, len(signals))
-            await asyncio.sleep(REQUEST_DELAY)
+            await asyncio.sleep(request_delay)
 
     finally:
         await client.stop()

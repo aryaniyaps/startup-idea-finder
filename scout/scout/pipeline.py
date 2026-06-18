@@ -42,6 +42,7 @@ class Pipeline:
         )
         self.running = False
         self._cycle_count = 0
+        self.backfill_mode = False
 
     @staticmethod
     def _make_idea_id(title: str, source_url: str) -> str:
@@ -58,8 +59,7 @@ class Pipeline:
     def _is_active_hour(settings: Settings) -> bool:
         now = datetime.now(timezone.utc)
         return settings.active_hours_start <= now.hour < settings.active_hours_end
-
-    async def run_once(self) -> dict:
+    async def run_once(self, backfill: bool = False) -> dict:
         from scout.scrapers import (
             fetch_github_issues,
             fetch_hn,
@@ -75,18 +75,17 @@ class Pipeline:
 
         # 1. Scrape concurrently (frequency-gated)
         tasks: list = [
-            fetch_reddit(self.settings),
-            fetch_hn(self.settings),
-            fetch_news(self.settings),
-            fetch_twitter(self.settings),
-            fetch_worldmonitor(self.settings),
-            fetch_github_issues(self.settings),
+            fetch_reddit(self.settings, backfill=backfill),
+            fetch_hn(self.settings, backfill=backfill),
+            fetch_news(self.settings, backfill=backfill),
+            fetch_twitter(self.settings, backfill=backfill),
+            fetch_worldmonitor(self.settings, backfill=backfill),
+            fetch_github_issues(self.settings, backfill=backfill),
         ]
         if self._cycle_count % 2 == 0:
-            tasks.append(fetch_reviews(self.settings))
+            tasks.append(fetch_reviews(self.settings, backfill=backfill))
         if self._cycle_count % 4 == 0:
-            tasks.append(fetch_jobs(self.settings))
-
+            tasks.append(fetch_jobs(self.settings, backfill=backfill))
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         all_signals: list[dict] = []
@@ -219,12 +218,12 @@ class Pipeline:
         self.running = True
         logger.info("Pipeline loop started (interval=%dm)", self.settings.scrape_interval_minutes)
         while self.running:
-            if not self._is_active_hour(self.settings):
+            if not self.backfill_mode and not self._is_active_hour(self.settings):
                 await asyncio.sleep(300)
                 continue
 
             try:
-                stats = await self.run_once()
+                stats = await self.run_once(backfill=self.backfill_mode)
                 logger.info("Cycle %d: %s", self._cycle_count, json.dumps(stats))
             except Exception:
                 logger.error("Pipeline cycle %d crashed", self._cycle_count, exc_info=True)

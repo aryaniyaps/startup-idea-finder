@@ -227,7 +227,7 @@ async def _scrape_fiverr(client: httpx.AsyncClient) -> list[dict]:
     return all_results
 
 
-async def fetch_jobs(settings: Settings) -> list[dict]:
+async def fetch_jobs(settings: Settings, backfill: bool = False) -> list[dict]:
     """Scrape job boards for recurring tasks that could be automated.
 
     Searches Upwork and Fiverr for job/gig types that appear repeatedly,
@@ -269,6 +269,7 @@ async def fetch_jobs(settings: Settings) -> list[dict]:
             seen.add(key)
             unique.append(job)
 
-    limited = unique[:MAX_RESULTS]
+    max_results = 100 if backfill else MAX_RESULTS
+    limited = unique[:max_results]
     logger.info("Job boards: %d recurring job types found", len(limited))
     return limited

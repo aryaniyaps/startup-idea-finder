@@ -6,7 +6,7 @@ services:
     environment:
       CAMOFOX_HOST: "0.0.0.0"
       CAMOFOX_PORT: "9377"
-      CAMOFOX_AUTH_MODE: "disabled"
+      CAMOFOX_AUTH_MODE: "auto"
     shm_size: "2gb"
     restart: unless-stopped
     healthcheck:
@@ -18,16 +18,19 @@ services:
 
   scout:
     build:
-      context: ./scout
+      context: .
+      dockerfile: scout/Dockerfile
     ports:
       - "8765:8765"
     environment:
       SCOUT_BROWSER_API_URL: "http://camofox-browser:9377"
+      SCOUT_BROWSER_API_KEY: ${SCOUT_BROWSER_API_KEY:-}
       SCOUT_OPENAI_API_KEY: ${SCOUT_OPENAI_API_KEY:-}
       SCOUT_DATA_DIR: "/data"
       SCOUT_DB_PATH: "/data/scout.db"
       SCOUT_PROFILE_PATH: "/data/profile.json"
       SCOUT_GRAPH_PATH: "/app/graphify-out/graph.json"
+      WEB_DIST_PATH: "/app/web/dist"
     volumes:
       - scout_data:/data
       - ./graphify-out:/app/graphify-out:ro
@@ -39,10 +42,12 @@ services:
 
   scout-runner:
     build:
-      context: ./scout
+      context: .
+      dockerfile: scout/Dockerfile
     command: ["uv", "run", "scout", "run"]
     environment:
       SCOUT_BROWSER_API_URL: "http://camofox-browser:9377"
+      SCOUT_BROWSER_API_KEY: ${SCOUT_BROWSER_API_KEY:-}
       SCOUT_OPENAI_API_KEY: ${SCOUT_OPENAI_API_KEY:-}
       SCOUT_DATA_DIR: "/data"
       SCOUT_DB_PATH: "/data/scout.db"

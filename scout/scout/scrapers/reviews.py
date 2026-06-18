@@ -395,7 +395,7 @@ async def _scrape_trustpilot_companies(
     return results
 
 
-async def fetch_reviews(settings: Settings) -> list[dict]:
+async def fetch_reviews(settings: Settings, backfill: bool = False) -> list[dict]:
     """Scrape low-rated reviews from G2, Capterra, and Trustpilot.
 
     Targets software categories relevant to general business needs and major
@@ -437,6 +437,7 @@ async def fetch_reviews(settings: Settings) -> list[dict]:
             seen.add(r["url"])
             unique.append(r)
 
-    limited = unique[:MAX_REVIEWS_PER_RUN]
+    max_reviews = 200 if backfill else MAX_REVIEWS_PER_RUN
+    limited = unique[:max_reviews]
     logger.info("Reviews: %d unique low-rated reviews found", len(limited))
     return limited

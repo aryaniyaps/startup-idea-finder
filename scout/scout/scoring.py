@@ -663,53 +663,92 @@ async def extract_problems(
     return []
 
 
-async def score_idea(
-    idea: Idea,
-    profile: Any,  # UserProfile
-    kg: Any,  # KnowledgeGraph
+async def extract_problems_batch(
+    signals: list[dict[str, Any]],
     client: AsyncOpenAI,
     model: str = "gpt-4o-mini",
+) -> list[dict[str, Any]]:
+    """Batch-extract problems from multiple signals in groups of 8.
+
+    Args:
+        signals: list of dicts with keys ``text``, ``source_type``, ``id``.
+
+    Returns:
+        list of dicts with keys ``signal_id`` and ``problems``.
+    """
+    if not signals:
+        return []
+
+    CHUNK_SIZE = 8
+    all_results: list[dict[str, Any]] = []
+    api_calls = 0
+
+    for i in range(0, len(signals), CHUNK_SIZE):
+        chunk = signals[i : i + CHUNK_SIZE]
+        idx_map: dict[str, dict[str, Any]] = {}
+        labeled_blocks: list[str] = []
+
+        for j, sig in enumerate(chunk):
+            text = sig["text"][:8000]
+            source_type = sig.get("source_type", "unknown")
+            key = f"text_{j + 1}"
+            idx_map[key] = sig
+            labeled_blocks.append(
+                f"Text {j + 1} (source: {source_type}):\n{text}"
+            )
+
+        prompt = (
+            "You are analyzing multiple user-generated texts to extract startup-relevant problems.\n\n"
+            "For EACH of the following texts, extract distinct problem statements.\n\n"
+            + "\n\n---\n\n".join(labeled_blocks)
+            + "\n\nReturn a JSON object with keys \"text_1\", \"text_2\", etc. "
+            "Each value is a list of problem objects:\n"
+            '{"title": "...", "description": "...", "severity": 1-5}\n\n'
+            "If a text has no clear problem, return an empty list [] for that key."
+        )
+
+        try:
+            result = await _llm_json(
+                client, model, _EXTRACT_PROBLEMS_SYSTEM, prompt, max_tokens=3000
+            )
+            api_calls += 1
+        except Exception:
+            logger.warning(
+                "extract_problems_batch LLM call failed for chunk %d",
+                i // CHUNK_SIZE,
+                exc_info=True,
+            )
+            result = {}
+
+        for key, sig in idx_map.items():
+            problems = result.get(key, [])
+            if isinstance(problems, list):
+                all_results.append({
+                    "signal_id": sig["id"],
+                    "problems": [p for p in problems if isinstance(p, dict)],
+                })
+            else:
+                all_results.append({"signal_id": sig["id"], "problems": []})
+
+    logger.info(
+        "extract_problems_batch: %d signals in %d API calls (vs %d unbatched)",
+        len(signals), api_calls, len(signals),
+    )
+    return all_results
+
+
+
+def _build_score_report(
+    idea: Idea,
+    pq_mv_result: dict[str, Any] | None,
+    ff_result: dict[str, Any] | None,
+    kg: Any,
     cross_community_count: int = 0,
 ) -> ScoreReport:
-    """Full multi-axis scoring pipeline.
-
-    Parameters
-    ----------
-    cross_community_count:
-        Number of distinct communities where semantically similar complaints
-        have been detected.  Used for the repetition bonus in sentiment scoring.
-    """
+    """Assemble a ScoreReport from parsed LLM scores plus local computations."""
     idea_text = f"{idea.title}\n{idea.description}"
     justification_parts: list[str] = []
     risks: list[str] = []
-
-    # ── Step 1: Extract supplementary problems ──────────────────────────
-    supplementary = await extract_problems(idea.description, idea.source_type, client, model)
-
-    # ── Step 2: Problem Quality + Market Viability (LLM, concurrent with FF) ──
-    pq_mv_prompt = _build_pq_mv_prompt(idea.title, idea.description, supplementary)
-
-    async def _call_pq_mv() -> dict[str, Any]:
-        try:
-            return await _llm_json(client, model, _PQ_MV_SYSTEM_PROMPT, pq_mv_prompt, max_tokens=2000)
-        except Exception:
-            logger.warning("PQ+MV LLM call failed", exc_info=True)
-            return {}
-
-    # ── Step 3: Founder-Market Fit (LLM) ────────────────────────────────
-    ff_prompt = _build_founder_fit_prompt(idea.title, idea.description, profile)
-
-    async def _call_ff() -> dict[str, Any]:
-        try:
-            return await _llm_json(
-                client, model, "", ff_prompt, max_tokens=1000, temperature=0.4
-            )
-        except Exception:
-            logger.warning("Founder-fit LLM call failed", exc_info=True)
-            return {}
-
-    # Run PQ+MV and FF concurrently
-    pq_mv_result, ff_result = await asyncio.gather(_call_pq_mv(), _call_ff())
 
     # ── Parse PQ+MV scores ──────────────────────────────────────────────
     pq_scores = pq_mv_result.get("problem_quality", {}) if pq_mv_result else {}
@@ -838,3 +877,159 @@ async def score_idea(
         verdict=verdict,
         justification=" ".join(justification_parts),
     )
+
+async def score_idea(
+    idea: Idea,
+    profile: Any,  # UserProfile
+    kg: Any,  # KnowledgeGraph
+    client: AsyncOpenAI,
+    model: str = "gpt-4o-mini",
+    cross_community_count: int = 0,
+) -> ScoreReport:
+    """Full multi-axis scoring pipeline.
+
+    Parameters
+    ----------
+    cross_community_count:
+        Number of distinct communities where semantically similar complaints
+        have been detected.  Used for the repetition bonus in sentiment scoring.
+    """
+
+    # ── Step 1: Extract supplementary problems ──────────────────────────
+    supplementary = await extract_problems(idea.description, idea.source_type, client, model)
+
+    # ── Step 2: Problem Quality + Market Viability (LLM, concurrent with FF) ──
+    pq_mv_prompt = _build_pq_mv_prompt(idea.title, idea.description, supplementary)
+
+    async def _call_pq_mv() -> dict[str, Any]:
+        try:
+            return await _llm_json(client, model, _PQ_MV_SYSTEM_PROMPT, pq_mv_prompt, max_tokens=2000)
+        except Exception:
+            logger.warning("PQ+MV LLM call failed", exc_info=True)
+            return {}
+
+    # ── Step 3: Founder-Market Fit (LLM) ────────────────────────────────
+    ff_prompt = _build_founder_fit_prompt(idea.title, idea.description, profile)
+
+    async def _call_ff() -> dict[str, Any]:
+        try:
+            return await _llm_json(
+                client, model, "", ff_prompt, max_tokens=1000, temperature=0.4
+            )
+        except Exception:
+            logger.warning("Founder-fit LLM call failed", exc_info=True)
+            return {}
+
+    # Run PQ+MV and FF concurrently
+    pq_mv_result, ff_result = await asyncio.gather(_call_pq_mv(), _call_ff())
+    return _build_score_report(idea, pq_mv_result, ff_result, kg, cross_community_count)
+
+
+async def score_ideas_batch(
+    ideas: list[Idea],
+    profile: Any,
+    kg: Any,
+    client: AsyncOpenAI,
+    model: str = "gpt-4o-mini",
+    cross_community_counts: list[int] | None = None,
+) -> list[ScoreReport]:
+    """Batch-score multiple ideas in groups of 4.
+
+    Sends a single API call per group asking the LLM to score all ideas
+    in the batch. Reduces API calls by ~4x vs individual scoring.
+
+    Args:
+        ideas: List of Idea objects to score.
+        profile: UserProfile for founder-fit scoring.
+        kg: KnowledgeGraph for tarpit/failure-mode lookups.
+        client: OpenAI async client.
+        model: Model to use.
+        cross_community_counts: Per-idea cross-community counts for sentiment.
+
+    Returns:
+        List of ScoreReport objects, one per input idea.
+    """
+    if not ideas:
+        return []
+
+    BATCH_SIZE = 4
+    all_reports: list[ScoreReport] = []
+    api_calls = 0
+
+    counts = cross_community_counts or [0] * len(ideas)
+
+    for batch_start in range(0, len(ideas), BATCH_SIZE):
+        batch = ideas[batch_start:batch_start + BATCH_SIZE]
+        batch_counts = counts[batch_start:batch_start + BATCH_SIZE]
+
+        # Build combined PQ+MV prompt
+        pq_mv_blocks: list[str] = []
+        ff_blocks: list[str] = []
+
+        for j, idea in enumerate(batch):
+            pq_mv_blocks.append(
+                f"Idea {j + 1}: {idea.title}\n{idea.description[:1000]}"
+            )
+            ff_blocks.append(
+                f"Idea {j + 1}: {idea.title}\n{idea.description[:500]}"
+            )
+
+        pq_mv_prompt = (
+            "Evaluate the following startup ideas for Problem Quality and Market Viability.\n\n"
+            + "\n\n---\n\n".join(pq_mv_blocks)
+            + "\n\nFor EACH idea, return problem_quality (8 criteria, 0-10 each: urgency, pervasiveness, "
+            "frequency, cost_of_inaction, growth, mandatory, underserved, acuteness) and market_viability "
+            "(6 criteria, 0-10 each: buyer_budget, market_size, reach, competition, business_model, timing). "
+            "Include risks and justification for each.\n\n"
+            "Return JSON: {\"idea_1\": {...}, \"idea_2\": {...}}"
+        )
+
+        ff_prompt = (
+            "Evaluate founder-market fit for these ideas given the founder's profile.\n\n"
+            f"Founder: skills={', '.join(profile.skills) if profile.skills else 'unspecified'}, "
+            f"industries={', '.join(profile.industries) if profile.industries else 'unspecified'}, "
+            f"experience={profile.years_experience}y, technical_depth={profile.technical_depth}\n\n"
+            + "\n\n---\n\n".join(ff_blocks)
+            + "\n\nFor EACH idea, score 5 criteria (0-10): domain_expertise, technical_fit, "
+            "network_advantage, passion_persistence, unique_insight. Include justification.\n\n"
+            "Return JSON: {\"idea_1\": {...}, \"idea_2\": {...}}"
+        )
+
+        # Run PQ+MV and FF concurrently for this batch
+        async def _call_pq_mv_batch() -> dict[str, Any]:
+            return await _llm_json(
+                client, model, _PQ_MV_SYSTEM_PROMPT, pq_mv_prompt, max_tokens=4000
+            )
+
+        async def _call_ff_batch() -> dict[str, Any]:
+            return await _llm_json(
+                client, model, "", ff_prompt, max_tokens=2000, temperature=0.4
+            )
+
+        try:
+            pq_mv_result, ff_result = await asyncio.gather(
+                _call_pq_mv_batch(), _call_ff_batch()
+            )
+            api_calls += 2
+        except Exception:
+            logger.warning(
+                "score_ideas_batch LLM call failed for batch %d",
+                batch_start // BATCH_SIZE,
+                exc_info=True,
+            )
+            pq_mv_result, ff_result = {}, {}
+
+        # Parse per-idea results
+        for j, idea in enumerate(batch):
+            key = f"idea_{j + 1}"
+            pq_mv = pq_mv_result.get(key, {}) if pq_mv_result else {}
+            ff = ff_result.get(key, {}) if ff_result else {}
+            cc = batch_counts[j] if j < len(batch_counts) else 0
+            report = _build_score_report(idea, pq_mv, ff, kg, cc)
+            all_reports.append(report)
+
+    logger.info(
+        "score_ideas_batch: %d ideas in %d API calls (vs %d unbatched)",
+        len(ideas), api_calls, len(ideas) * 2,
+    )
+    return all_reports

@@ -1,3 +1,12 @@
+# Stage 1: Build Vite React frontend
+FROM node:22-alpine AS web-builder
+WORKDIR /app/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
+# Stage 2: Python API server
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -10,15 +19,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy project files
-COPY pyproject.toml .
-COPY scout/ ./scout/
+# Copy Python project
+COPY scout/pyproject.toml .
+COPY scout/scout/ ./scout/
 
-# Install deps (no lockfile needed with --no-dev)
+# Copy built frontend from web-builder
+COPY --from=web-builder /app/web/dist /app/web/dist
+
+# Install Python deps
 RUN uv sync --no-dev
 
-# Expose dashboard port
+# Expose port
 EXPOSE 8765
 
-# Default: run dashboard
+# Default: serve API + SPA
 CMD ["uv", "run", "scout", "web", "--host", "0.0.0.0", "--port", "8765"]

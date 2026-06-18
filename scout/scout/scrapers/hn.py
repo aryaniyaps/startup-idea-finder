@@ -91,7 +91,7 @@ async def _fetch_top_comments(
     return comments
 
 
-async def fetch_hn(settings: "Settings") -> list[dict]:
+async def fetch_hn(settings: "Settings", backfill: bool = False) -> list[dict]:
     """
     Fetch recent Ask HN, Show HN, and new stories that indicate problems.
 
@@ -100,21 +100,23 @@ async def fetch_hn(settings: "Settings") -> list[dict]:
     """
     discovered_at = datetime.now(timezone.utc).isoformat()
     sem = asyncio.Semaphore(20)
+    story_limit = 200 if backfill else STORY_LIMIT
+    new_limit = 100 if backfill else NEW_STORY_LIMIT
 
     async with httpx.AsyncClient(timeout=30) as client:
         try:
             # Fetch story ID lists.
             resp_ask = await client.get(f"{HN_BASE}/askstories.json")
             resp_ask.raise_for_status()
-            ask_ids: list[int] = resp_ask.json()[:STORY_LIMIT]
+            ask_ids: list[int] = resp_ask.json()[:story_limit]
 
             resp_show = await client.get(f"{HN_BASE}/showstories.json")
             resp_show.raise_for_status()
-            show_ids: list[int] = resp_show.json()[:STORY_LIMIT]
+            show_ids: list[int] = resp_show.json()[:story_limit]
 
             resp_new = await client.get(f"{HN_BASE}/newstories.json")
             resp_new.raise_for_status()
-            new_ids: list[int] = resp_new.json()[:NEW_STORY_LIMIT]
+            new_ids: list[int] = resp_new.json()[:new_limit]
         except Exception as exc:
             logger.error("HN API fetch failed for story lists: %s", exc)
             return []

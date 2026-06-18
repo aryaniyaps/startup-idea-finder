@@ -76,6 +76,16 @@ async def cmd_profile(args: argparse.Namespace) -> None:
 
 async def cmd_run(args: argparse.Namespace) -> None:
     pipeline = await create_pipeline()
+    pipeline.backfill_mode = getattr(args, 'backfill', False)
+
+    if getattr(args, 'once', False):
+        # Single cycle — backfill or normal
+        logger.info("Running single cycle (backfill=%s)", pipeline.backfill_mode)
+        stats = await pipeline.run_once()
+        logger.info("Cycle complete: %s", json.dumps(stats))
+        return
+
+    # Continuous loop
     loop = asyncio.get_running_loop()
 
     def _shutdown():
@@ -167,7 +177,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_profile = sub.add_parser("profile", help="View or edit user profile")
     p_profile.add_argument("--edit", action="store_true", help="Edit profile interactively")
 
-    sub.add_parser("run", help="Start the continuous pipeline")
+    p_run = sub.add_parser("run", help="Start the continuous pipeline")
+    p_run.add_argument("--backfill", action="store_true", help="Scrape all historical data (full backfill)")
+    p_run.add_argument("--once", action="store_true", help="Run a single cycle and exit")
 
     p_web = sub.add_parser("web", help="Start the dashboard web server")
     p_web.add_argument("--host", default="127.0.0.1", help="Host (default 127.0.0.1)")

@@ -72,6 +72,7 @@ async def _process_feed(
     source_label: str,
     industries: list[str],
     discovered_at: str,
+    max_results: int = MAX_RESULTS,
 ) -> list[dict]:
     """Fetch and process a single RSS feed."""
     xml = await safe_fetch(client, url)
@@ -115,14 +116,14 @@ async def _process_feed(
             "discovered_at": discovered_at,
         })
 
-        if len(signals) >= MAX_RESULTS:
+        if len(signals) >= max_results:
             break
 
     logger.debug("news: %d signals from %s", len(signals), url)
     return signals
 
 
-async def fetch_news(settings: "Settings") -> list[dict]:
+async def fetch_news(settings: "Settings", backfill: bool = False) -> list[dict]:
     """
     Fetch recent news articles and extract problem-signaling content.
 
@@ -133,6 +134,8 @@ async def fetch_news(settings: "Settings") -> list[dict]:
     Limited to MAX_RESULTS across all feeds.
     """
     discovered_at = datetime.now(timezone.utc).isoformat()
+    max_results = 100 if backfill else MAX_RESULTS
+    max_per_feed = 100 if backfill else MAX_RESULTS
 
     # Extract user industries from settings (lazy import to avoid
     # circular dependency; the profile is loaded from config).
@@ -146,7 +149,7 @@ async def fetch_news(settings: "Settings") -> list[dict]:
 
     async with httpx.AsyncClient(timeout=30) as client:
         tasks = [
-            _process_feed(client, url, label, industries, discovered_at)
+            _process_feed(client, url, label, industries, discovered_at, max_per_feed)
             for url, label in FEEDS
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -159,6 +162,6 @@ async def fetch_news(settings: "Settings") -> list[dict]:
             logger.warning("news: feed processing failed: %s", r)
 
     # Sort by recency (most entries have published_parsed) and limit.
-    all_signals = all_signals[:MAX_RESULTS]
+    all_signals = all_signals[:max_results]
     logger.info("news: %d total signals", len(all_signals))
     return all_signals

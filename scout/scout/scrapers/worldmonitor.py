@@ -90,7 +90,7 @@ def _truncate(text: str, max_len: int = 80) -> str:
     return stripped[: max_len - 1].rstrip() + "…"
 
 
-async def fetch_worldmonitor(settings: Settings) -> list[dict]:
+async def fetch_worldmonitor(settings: Settings, backfill: bool = False) -> list[dict]:
     """Fetch WorldMonitor briefs and extract problem signals.
 
     Calls the local WorldMonitor API's /api/briefs endpoint. Each brief is
@@ -99,7 +99,8 @@ async def fetch_worldmonitor(settings: Settings) -> list[dict]:
     Returns list[dict] with keys title, text, url, source_type, source_tier,
     discovered_at. Gracefully returns [] if WorldMonitor is unreachable.
     """
-    url = f"{settings.worldmonitor_url}/api/briefs?limit=20"
+    limit = 50 if backfill else 20
+    url = f"{settings.worldmonitor_url}/api/briefs?limit={limit}"
     timeout = httpx.Timeout(10.0, connect=5.0)
 
     async with httpx.AsyncClient(timeout=timeout) as client:

@@ -1,0 +1,6 @@
+{
+  "files": ["scout/scout/templates/index.html"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}

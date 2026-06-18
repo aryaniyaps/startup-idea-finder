@@ -28,8 +28,10 @@ class Settings(BaseSettings):
     # CamoFox stealth browser API
     browser_api_url: str = "http://localhost:9377"
     browser_user_id: str = "scout"
+    browser_api_key: str = ""
+    camofox_auth_mode: str = "auto"
 
-    scrape_interval_minutes: int = 15
+    scrape_interval_minutes: int = 1440
     active_hours_start: int = 6
     active_hours_end: int = 23
     max_ideas_tracked: int = 500

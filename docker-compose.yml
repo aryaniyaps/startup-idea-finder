@@ -6,7 +6,7 @@ services:
     environment:
       CAMOFOX_HOST: "0.0.0.0"
       CAMOFOX_PORT: "9377"
-      CAMOFOX_AUTH_MODE: "off"
+      CAMOFOX_AUTH_MODE: "disabled"
     shm_size: "2gb"
     restart: unless-stopped
     healthcheck:

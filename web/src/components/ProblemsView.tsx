@@ -127,7 +127,7 @@ export function ProblemsView() {
                       )}
 
                       {/* Tarpit warning */}
-                      {p.tarpit_check && (p.tarpit_check as Record<string, unknown>).is_tarpit && (
+                      {p.tarpit_check && Boolean((p.tarpit_check as Record<string, unknown>).is_tarpit) && (
                         <div className="mt-4 bg-brick-red/10 border border-brick-red/30 rounded-md p-3">
                           <p className="text-sm text-brick-red font-semibold">Tarpit Warning</p>
                           <p className="text-xs text-brick-red/80 mt-1">

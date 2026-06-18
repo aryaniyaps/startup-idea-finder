@@ -7,7 +7,7 @@ services:
       CAMOFOX_HOST: "0.0.0.0"
       CAMOFOX_PORT: "9377"
       CAMOFOX_AUTH_MODE: "auto"
-    shm_size: "2gb"
+      CAMOFOX_API_KEY: ${CAMOFOX_API_KEY:-scout-dev-key-change-in-production}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9377/health"]

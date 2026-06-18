@@ -190,6 +190,23 @@ class Database:
         rows = list(self.db.query(sql, params))
         return [dict(r) for r in rows]
 
+    def store_raw_signal(self, signal: dict) -> int:
+        """Persist a raw signal dict; returns its auto-incremented id."""
+        signal = dict(signal)
+        signal.setdefault("created_at", _now())
+        signal.setdefault("processed", False)
+        signal = _coerce_row(signal)
+        return self.db["raw_signals"].insert(signal).last_pk
+
+    def get_unprocessed_signals(self, limit: int = 100) -> list[dict]:
+        rows = self.db["raw_signals"].rows_where(
+            "processed = 0", limit=limit, order_by="id"
+        )
+        return [dict(r) for r in rows]
+
+    def mark_signal_processed(self, signal_id: int) -> None:
+        self.db["raw_signals"].update(signal_id, {"processed": True})
+
     def get_signal_stats(self) -> dict:
         """Aggregate stats for raw signals."""
         total_signals = self.db["raw_signals"].count
